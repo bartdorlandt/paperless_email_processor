@@ -1,0 +1,10 @@
+[project]
+name = "paperless-email-processor"
+version = "0.1.0"
+description = "A processor for files to be send to paperless or email"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = ["environs>=14.2.0", "requests>=2.32.4", "schedule>=1.2.2"]
+
+[dependency-groups]
+dev = ["pytest>=8.4.1"]

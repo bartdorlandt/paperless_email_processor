@@ -1,0 +1,64 @@
+version: "3"
+
+dotenv:
+  - .env
+
+vars:
+  DOCKER_IMAGE: snelstart_email_processor
+
+tasks:
+  default:
+    cmd: task -l --sort none
+    silent: true
+
+  up:
+    desc: Start the {{.DOCKER_IMAGE}} docker compose service
+    cmds:
+      - docker compose up -d
+
+  down:
+    desc: Stop the {{.DOCKER_IMAGE}} docker compose service
+    cmds:
+      - docker compose down
+
+  rmi:
+    desc: Stop the {{.DOCKER_IMAGE}} docker compose service
+    cmds:
+      - docker compose down --rmi all
+
+  logs:
+    desc: Show logs for the {{.DOCKER_IMAGE}} service
+    cmds:
+      - docker compose logs -f {{.DOCKER_IMAGE}}
+
+  docker:build:
+    desc: Build the {{.DOCKER_IMAGE}} docker image
+    cmds:
+      - docker build --no-cache -t {{.DOCKER_IMAGE}} .
+
+  docker:rmi:
+    desc: Delete the {{.DOCKER_IMAGE}} docker image
+    cmds:
+      - docker rmi {{.DOCKER_IMAGE}}
+
+  docker:stop:
+    desc: Stop the {{.DOCKER_IMAGE}} docker image
+    cmds:
+      - docker stop {{.DOCKER_IMAGE}}
+
+  docker:rebuild:
+    desc: Rebuild the {{.DOCKER_IMAGE}} docker image
+    cmds:
+      - task: docker:stop
+      - task: docker:rmi
+      - task: docker:build
+
+  docker:run:
+    desc: Run the {{.DOCKER_IMAGE}} service
+    cmds:
+      - |
+        docker run -it --rm \
+        --name {{.DOCKER_IMAGE}} \
+        -v {{.PROCESS_FOLDER}}:/app/process_folder \
+        --env-file .env \
+        {{.DOCKER_IMAGE}}
