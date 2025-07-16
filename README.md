@@ -24,3 +24,5 @@ It reads the `PROCESS_FOLDER` environment variable to set the main path for proc
 
 ## Usage
 Provide the main folder along with the environment variables in a `.env` file.
+
+Run `task up` to start the docker container.
