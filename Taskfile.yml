@@ -4,7 +4,8 @@ dotenv:
   - .env
 
 vars:
-  DOCKER_IMAGE: snelstart_email_processor
+  DOCKER_IMAGE: paperless_email_processor
+  REMOTE_PATH: "/Volumes/docker/{{.DOCKER_IMAGE}}"
 
 tasks:
   default:
@@ -20,6 +21,11 @@ tasks:
     desc: Stop the {{.DOCKER_IMAGE}} docker compose service
     cmds:
       - docker compose down
+
+  rebuild:
+    desc: Rebuild the {{.DOCKER_IMAGE}} docker compose service
+    cmds:
+      - docker compose up -d --build
 
   rmi:
     desc: Stop the {{.DOCKER_IMAGE}} docker compose service
@@ -61,4 +67,18 @@ tasks:
         --name {{.DOCKER_IMAGE}} \
         -v {{.PROCESS_FOLDER}}:/app/process_folder \
         --env-file .env \
-        {{.DOCKER_IMAGE}}
+        {{.DOCKER_IMAGE}} {{.CLI_ARGS}}
+
+  docker:run:bash:
+    desc: Run a bash shell in the {{.DOCKER_IMAGE}} service
+    cmds:
+      - task: docker:run
+        vars:
+          CLI_ARGS: /bin/bash
+    deps:
+      - docker:build
+
+  sync:
+    desc: "Sync the files to the remote system"
+    cmds:
+      - rsync -avz * --exclude '__pycache__/'  --exclude '.git' --exclude '.venv' --exclude '.env' --exclude '.envrc' --exclude '.vscode' --exclude '.pytest_cache' --exclude 'process_folder/' {{.REMOTE_PATH}}/

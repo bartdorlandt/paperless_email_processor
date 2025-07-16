@@ -16,7 +16,7 @@ def setup_test_file(tmp_path, folder_name="to_paperless", filename="test.pdf") -
 def test_move_to_done(tmp_path: Path) -> None:
     file_path = setup_test_file(tmp_path)
     main.move_to_done(file_path)
-    done_file = tmp_path / "done" / "to_paperless" / "test.pdf"
+    done_file = main.to_done / "to_paperless" / "test.pdf"
     assert done_file.exists()
     assert not file_path.exists()
 

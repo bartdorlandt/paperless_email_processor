@@ -1,9 +1,9 @@
 services:
-  snelstart_email_processor:
+  paperless_email_processor:
     env_file:
       - path: ./.env
     build: .
-    container_name: snelstart_email_processor
+    container_name: paperless_email_processor
     # environment:
     #   - PAPERLESS_API_TOKEN=${PAPERLESS_API_TOKEN}
     #   - PAPERLESS_API_PATH=${PAPERLESS_API_PATH}
@@ -15,5 +15,4 @@ services:
     #   - SMTP_TO=${SMTP_TO}
     volumes:
       - ${PROCESS_FOLDER}:/app/process_folder
-      # - ./.env:/app/.env:ro
     restart: unless-stopped
