@@ -4,6 +4,9 @@ services:
       - path: ./.env
     build: .
     container_name: paperless_email_processor
+    labels:
+      # This label is used by Watchtower not update this container
+      - "com.centurylinklabs.watchtower.enable=false"
     # environment:
     #   - PAPERLESS_API_TOKEN=${PAPERLESS_API_TOKEN}
     #   - PAPERLESS_API_PATH=${PAPERLESS_API_PATH}
