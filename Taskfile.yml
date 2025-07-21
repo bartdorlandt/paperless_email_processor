@@ -15,42 +15,42 @@ tasks:
   up:
     desc: Start the {{.DOCKER_IMAGE}} docker compose service
     cmds:
-      - docker compose up -d
+      - "{{.SUDO}} docker compose up -d"
 
   down:
     desc: Stop the {{.DOCKER_IMAGE}} docker compose service
     cmds:
-      - docker compose down
+      - "{{.SUDO}} docker compose down"
 
   rebuild:
     desc: Rebuild the {{.DOCKER_IMAGE}} docker compose service
     cmds:
-      - docker compose up -d --build
+      - "{{.SUDO}} docker compose up -d --build"
 
   rmi:
     desc: Stop the {{.DOCKER_IMAGE}} docker compose service
     cmds:
-      - docker compose down --rmi all
+      - "{{.SUDO}} docker compose down --rmi all"
 
   logs:
     desc: Show logs for the {{.DOCKER_IMAGE}} service
     cmds:
-      - docker compose logs -f {{.DOCKER_IMAGE}}
+      - "{{.SUDO}} docker compose logs -f {{.DOCKER_IMAGE}}"
 
   docker:build:
     desc: Build the {{.DOCKER_IMAGE}} docker image
     cmds:
-      - docker build --no-cache -t {{.DOCKER_IMAGE}} .
+      - "{{.SUDO}} docker build --no-cache -t {{.DOCKER_IMAGE}} ."
 
   docker:rmi:
     desc: Delete the {{.DOCKER_IMAGE}} docker image
     cmds:
-      - docker rmi {{.DOCKER_IMAGE}}
+      - "{{.SUDO}} docker rmi {{.DOCKER_IMAGE}}"
 
   docker:stop:
     desc: Stop the {{.DOCKER_IMAGE}} docker image
     cmds:
-      - docker stop {{.DOCKER_IMAGE}}
+      - "{{.SUDO}} docker stop {{.DOCKER_IMAGE}}"
 
   docker:rebuild:
     desc: Rebuild the {{.DOCKER_IMAGE}} docker image
@@ -63,7 +63,7 @@ tasks:
     desc: Run the {{.DOCKER_IMAGE}} service
     cmds:
       - |
-        docker run -it --rm \
+        {{.SUDO}} docker run -it --rm \
         --name {{.DOCKER_IMAGE}} \
         -v {{.PROCESS_FOLDER}}:/app/process_folder \
         --env-file .env \
