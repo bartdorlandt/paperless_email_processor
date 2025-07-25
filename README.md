@@ -31,4 +31,4 @@ Since, I've been using `uv` to run the script directly on my server/nas. This al
 ## Usage
 Provide the main folder along with the environment variables in a `.env` file.
 
-Run `task run` to start the docker container.
+Run `task run` to start the script.
