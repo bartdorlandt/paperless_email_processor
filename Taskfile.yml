@@ -37,48 +37,12 @@ tasks:
     cmds:
       - "{{.SUDO}} docker compose logs -f {{.DOCKER_IMAGE}}"
 
-  docker:build:
-    desc: Build the {{.DOCKER_IMAGE}} docker image
+  run:
+    desc: Run the script with uv
     cmds:
-      - "{{.SUDO}} docker build --no-cache -t {{.DOCKER_IMAGE}} ."
-
-  docker:rmi:
-    desc: Delete the {{.DOCKER_IMAGE}} docker image
-    cmds:
-      - "{{.SUDO}} docker rmi {{.DOCKER_IMAGE}}"
-
-  docker:stop:
-    desc: Stop the {{.DOCKER_IMAGE}} docker image
-    cmds:
-      - "{{.SUDO}} docker stop {{.DOCKER_IMAGE}}"
-
-  docker:rebuild:
-    desc: Rebuild the {{.DOCKER_IMAGE}} docker image
-    cmds:
-      - task: docker:stop
-      - task: docker:rmi
-      - task: docker:build
-
-  docker:run:
-    desc: Run the {{.DOCKER_IMAGE}} service
-    cmds:
-      - |
-        {{.SUDO}} docker run -it --rm \
-        --name {{.DOCKER_IMAGE}} \
-        -v {{.PROCESS_FOLDER}}:/app/process_folder \
-        --env-file .env \
-        {{.DOCKER_IMAGE}} {{.CLI_ARGS}}
-
-  docker:run:bash:
-    desc: Run a bash shell in the {{.DOCKER_IMAGE}} service
-    cmds:
-      - task: docker:run
-        vars:
-          CLI_ARGS: /bin/bash
-    deps:
-      - docker:build
+      - uv run main.py
 
   sync:
     desc: "Sync the files to the remote system"
     cmds:
-      - rsync -avz * --exclude '__pycache__/'  --exclude '.git' --exclude '.venv' --exclude '.env' --exclude '.envrc' --exclude '.vscode' --exclude '.pytest_cache' --exclude 'process_folder/' {{.REMOTE_PATH}}/
+      - rsync -avz . --exclude '.ruff_cache/' --exclude '__pycache__/'  --exclude '.git' --exclude '.venv' --exclude '.env' --exclude '.envrc' --exclude '.vscode' --exclude '.pytest_cache' --exclude 'paperless_email_processor.log' --exclude 'process_folder/' {{.REMOTE_PATH}}/

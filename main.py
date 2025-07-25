@@ -1,12 +1,13 @@
 import logging
 import smtplib
 import ssl
-import time
 from email.message import EmailMessage
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import NoReturn, Protocol
 
 import requests
+import urllib3
 from environs import Env, validate
 
 # Load environment variables
@@ -22,10 +23,11 @@ SMTP_SRV = env.str("SMTP_SRV")
 SMTP_USR = env.str("SMTP_USR", validate=[validate.Length(min=4), validate.Email()])
 SMTP_PWD = env.str("SMTP_PWD")
 SMTP_TO = env.str("SMTP_TO", validate=[validate.Length(min=4), validate.Email()])
+PROCESS_FOLDER = env.str("PROCESS_FOLDER", default="process_folder")
 
 # expected path. e.g.: process_folder/to_paperless
 # expected path. e.g.: process_folder/done/to_paperless
-main_path = Path("process_folder")
+main_path = Path(PROCESS_FOLDER)
 to_paperless = main_path / "to_paperless"
 to_bookkeeping = main_path / "to_bookkeeping"
 to_both = main_path / "to_both"
@@ -33,12 +35,30 @@ to_done = main_path / "done"
 
 CHECK_INTERVAL = 300  # 5 minutes
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+# Logging setup: log to file and console, rotate at 10MB
+LOG_FILENAME = Path(__file__).parent / "paperless_email_processor.log"
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+if not logger.hasHandlers():
+    file_handler = RotatingFileHandler(
+        LOG_FILENAME, maxBytes=10 * 1024 * 1024, backupCount=2, encoding="utf-8"
+    )
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    )
+    logger.addHandler(file_handler)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    )
+    logger.addHandler(console_handler)
 
 
 class FileProcessor(Protocol):
-    def process(self, filepath: Path) -> bool: ...
+    def process(self, filepath: Path) -> bool:
+        """Process the file and return True if successful, False otherwise."""
 
 
 class PaperlessAPIProcessor:
@@ -46,7 +66,20 @@ class PaperlessAPIProcessor:
         url = f"{PAPERLESS_API_URL.rstrip('/')}{PAPERLESS_API_PATH}"
         headers = {"Authorization": f"Token {PAPERLESS_API_TOKEN}"}
         files = {"document": filepath.open("rb")}
-        response = requests.post(url, headers=headers, files=files)
+        try:
+            response = requests.post(url, headers=headers, files=files)
+        except requests.ConnectionError as e:
+            logger.error(f"Failed to connect to Paperless API: {e}")
+            return False
+        except urllib3.exceptions.MaxRetryError as e:
+            logger.error(f"Max retries exceeded while connecting to Paperless API: {e}")
+            return False
+        except urllib3.exceptions.NameResolutionError as e:
+            logger.error(
+                f"Name resolution error while connecting to Paperless API: {e}"
+            )
+            return False
+        logger.debug(f"Response from Paperless: {response.status_code} {response.text}")
         if response.status_code == 200:
             logger.info(f"Uploaded to Paperless: {filepath}")
             return True
@@ -113,14 +146,12 @@ def process_folder(folder: Path, processors: FileProcessor = None) -> None:
 
 
 def main() -> NoReturn:
-    logger.info("Starting paperless-email-processor service...")
+    # logger.info("Starting paperless-email-processor service...")
     paperless_processor = PaperlessAPIProcessor()
     bookkeeping_processor = BookkeepingEmailProcessor()
-    while True:
-        process_folder(to_paperless, processors=[paperless_processor])
-        process_folder(to_bookkeeping, processors=[bookkeeping_processor])
-        process_folder(to_both, processors=[paperless_processor, bookkeeping_processor])
-        time.sleep(CHECK_INTERVAL)
+    process_folder(to_paperless, processors=[paperless_processor])
+    process_folder(to_bookkeeping, processors=[bookkeeping_processor])
+    process_folder(to_both, processors=[paperless_processor, bookkeeping_processor])
 
 
 if __name__ == "__main__":
