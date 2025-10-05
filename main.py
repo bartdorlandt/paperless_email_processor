@@ -4,7 +4,7 @@ import ssl
 from email.message import EmailMessage
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import NoReturn, Protocol
+from typing import Protocol
 
 import requests
 import urllib3
@@ -128,24 +128,24 @@ def move_to_done(filepath: Path) -> None:
     logger.info(f"Moved {filepath} to {target}")
 
 
-def process_folder(folder: Path, processors: FileProcessor = None) -> None:
+def process_folder(folder: Path, processors: list[FileProcessor]) -> None:
     folder.mkdir(exist_ok=True)
     for file in list(folder.iterdir()):
         if not file.is_file():
             continue
-        if processors:
-            # Track if any processor succeeded
-            processed = False
-            for processor in processors:
-                # Only move to done if all processors succeed
-                result = processor.process(file)
-                processed = processed or result
-            # If at least one processor succeeded, move to done
-            if processed:
-                move_to_done(file)
+
+        # Track if any processor succeeded
+        processed = 0
+        for processor in processors:
+            # Only move to done if all processors succeed
+            result = processor.process(file)
+            processed += result
+
+        if processed == len(processors):
+            move_to_done(file)
 
 
-def main() -> NoReturn:
+def main() -> None:
     # logger.info("Starting paperless-email-processor service...")
     paperless_processor = PaperlessAPIProcessor()
     bookkeeping_processor = BookkeepingEmailProcessor()
