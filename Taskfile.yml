@@ -45,4 +45,48 @@ tasks:
   sync:
     desc: "Sync the files to the remote system"
     cmds:
-      - rsync -avz . --exclude '.ruff_cache/' --exclude '__pycache__/'  --exclude '.git' --exclude '.venv' --exclude '.env' --exclude '.envrc' --exclude '.vscode' --exclude '.pytest_cache' --exclude 'paperless_email_processor.log' --exclude 'process_folder/' {{.REMOTE_PATH}}/
+      - rsync -avz . {{.excludes}} {{.REMOTE_PATH}}/
+    vars:
+      excludes: >-
+        --exclude '.github/'
+        --exclude '__pycache__/'
+        --exclude '.mypy_cache/'
+        --exclude '.pytest_cache/'
+        --exclude '.ruff_cache/'
+        --exclude '.git'
+        --exclude '.venv'
+        --exclude '.vscode'
+        --exclude '.env'
+        --exclude '.envrc'
+        --exclude old/
+        --exclude 'process_folder/'
+        --exclude 'paperless_email_processor.log'
+
+  pytest:
+    desc: Run pytest
+    cmds:
+      - uv run pytest -v
+
+  lint:
+    desc: Lint the code
+    cmds:
+      - uv run ruff check .
+      - uv run ruff format . --diff --check
+
+  mypy:
+    desc: Run mypy type checking
+    cmds:
+      - uv run mypy .
+
+  tests:
+    desc: Run all tests and checks
+    cmds:
+      - task: lint
+      - task: mypy
+      - task: pytest
+
+  fmt:
+    desc: Format the code
+    cmds:
+      - uv run ruff check . --fix
+      - uv run ruff format .
