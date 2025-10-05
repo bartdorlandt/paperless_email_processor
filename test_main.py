@@ -1,7 +1,15 @@
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import main
+
+
+@pytest.fixture(scope="session", autouse=True)
+def set_env():
+    os.environ["PAPERLESS_API_TOKEN"] = "some_token"
 
 
 # Fixtures for test files and folders
@@ -14,7 +22,11 @@ def setup_test_file(tmp_path, folder_name="to_paperless", filename="test.pdf") -
 
 
 def test_move_to_done(tmp_path: Path) -> None:
-    file_path = setup_test_file(tmp_path)
+    file_path = setup_test_file(tmp_path / "dir1")
+    # Override to_done for testing, when testing inside a container
+    # OSError: [Errno 18] Invalid cross-device link:
+    main.to_done = tmp_path / "done"
+
     main.move_to_done(file_path)
     done_file = main.to_done / "to_paperless" / "test.pdf"
     assert done_file.exists()
