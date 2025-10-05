@@ -48,6 +48,7 @@ tasks:
       - rsync -avz . {{.excludes}} {{.REMOTE_PATH}}/
     vars:
       excludes: >-
+        --exclude '.github/'
         --exclude '__pycache__/'
         --exclude '.mypy_cache/'
         --exclude '.pytest_cache/'
