@@ -7,9 +7,18 @@ import pytest
 import main
 
 
-@pytest.fixture(scope="session", autouse=True)
-def set_env():
+@pytest.fixture(autouse=True)
+def set_env(tmp_path: Path) -> None:
     os.environ["PAPERLESS_API_TOKEN"] = "some_token"
+    os.environ["PAPERLESS_API_PATH"] = "/api/documents/post_document/"
+    os.environ["PAPERLESS_API_URL"] = "http://localhost:8000"
+    os.environ["SMTP_PORT"] = "465"
+    os.environ["SMTP_SRV"] = "smtp.example.com"
+    os.environ["SMTP_USR"] = "user@example.com"
+    os.environ["SMTP_PWD"] = "password"
+    os.environ["SMTP_TO"] = "recipient@example.com"
+    os.environ["PROCESS_FOLDER"] = str(tmp_path / "process_folder")
+    main.main_path = Path(os.environ["PROCESS_FOLDER"])
 
 
 # Fixtures for test files and folders
@@ -25,10 +34,10 @@ def test_move_to_done(tmp_path: Path) -> None:
     file_path = setup_test_file(tmp_path / "dir1")
     # Override to_done for testing, when testing inside a container
     # OSError: [Errno 18] Invalid cross-device link:
-    main.to_done = tmp_path / "done"
+    # main.to_done = tmp_path / "done"
 
     main.move_to_done(file_path)
-    done_file = main.to_done / "to_paperless" / "test.pdf"
+    done_file = main.main_path / "done" / "to_paperless" / "test.pdf"
     assert done_file.exists()
     assert not file_path.exists()
 
