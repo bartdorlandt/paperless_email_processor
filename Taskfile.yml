@@ -64,18 +64,18 @@ tasks:
   pytest:
     desc: Run pytest
     cmds:
-      - pytest -v
+      - uv run pytest -v
 
   lint:
     desc: Lint the code
     cmds:
-      - ruff check .
-      - ruff format . --diff --check
+      - uv run ruff check .
+      - uv run ruff format . --diff --check
 
   mypy:
     desc: Run mypy type checking
     cmds:
-      - mypy .
+      - uv run mypy .
 
   tests:
     desc: Run all tests and checks
@@ -87,5 +87,5 @@ tasks:
   fmt:
     desc: Format the code
     cmds:
-      - ruff check . --fix
-      - ruff format .
+      - uv run ruff check . --fix
+      - uv run ruff format .
