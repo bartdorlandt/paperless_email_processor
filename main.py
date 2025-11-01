@@ -39,21 +39,21 @@ if not logger.hasHandlers():
 class PaperlessVars:
     """Paperless API configuration variables."""
 
-    api_token: str = env.str("PAPERLESS_API_TOKEN")
-    api_path: str = env.str("PAPERLESS_API_PATH")
-    api_url: str = env.str("PAPERLESS_API_URL")
+    api_token: str
+    api_path: str
+    api_url: str
 
 
 @dataclass
 class EmailVars:
     """Email (SMTP) configuration variables."""
 
-    smtp_port: int = env.int("SMTP_PORT")
-    smtp_srv: str = env.str("SMTP_SRV")
-    smtp_usr: str = env.str("SMTP_USR", validate=[validate.Length(min=4), validate.Email()])
-    smtp_pwd: str = env.str("SMTP_PWD")
-    smtp_to: str = env.str("SMTP_TO", validate=[validate.Length(min=4), validate.Email()])
-    error_email: str = env.str("ERR_EMAIL", validate=[validate.Length(min=4), validate.Email()])
+    smtp_srv: str
+    smtp_usr: str
+    smtp_pwd: str
+    smtp_to: str
+    error_email: str
+    smtp_port: int = 465
 
 
 class FileProcessor(Protocol):
@@ -104,7 +104,11 @@ class BookkeepingEmailProcessor:
 
     def process(self, filepath: Path) -> bool:
         """Process the file and send it via email."""
-        msg = new_email_message(subject=filepath.name, smtp_to=self.vars.smtp_to, smtp_from=self.vars.smtp_usr)
+        msg = new_email_message(
+            subject=filepath.name,
+            smtp_to=self.vars.smtp_to,
+            smtp_from=self.vars.smtp_usr,
+        )
         with filepath.open("rb") as f:
             msg.add_attachment(
                 f.read(),
@@ -201,6 +205,17 @@ if __name__ == "__main__":
     main_path = Path(PROCESS_FOLDER)
 
     # Reading the vars here to ensure env dependencies are present and loaded
-    PAPERLESS_VARS = PaperlessVars()
-    EMAIL_VARS = EmailVars()
+    PAPERLESS_VARS = PaperlessVars(
+        api_token=env.str("PAPERLESS_API_TOKEN"),
+        api_path=env.str("PAPERLESS_API_PATH"),
+        api_url=env.str("PAPERLESS_API_URL"),
+    )
+    EMAIL_VARS = EmailVars(
+        smtp_port=env.int("SMTP_PORT"),
+        smtp_srv=env.str("SMTP_SRV"),
+        smtp_usr=env.str("SMTP_USR", validate=[validate.Length(min=4), validate.Email()]),
+        smtp_pwd=env.str("SMTP_PWD"),
+        smtp_to=env.str("SMTP_TO", validate=[validate.Length(min=4), validate.Email()]),
+        error_email=env.str("ERROR_EMAIL", validate=[validate.Length(min=4), validate.Email()]),
+    )
     main()
