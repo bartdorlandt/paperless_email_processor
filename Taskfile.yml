@@ -61,11 +61,13 @@ tasks:
         --exclude old/
         --exclude 'process_folder/'
         --exclude 'paperless_email_processor.log'
+        --exclude 'htmlcov/'
+        --exclude '.coverage'
 
   pytest:
     desc: Run pytest
     cmds:
-      - uv run pytest -v
+      - uv run pytest -v --cov=main --cov-report=html --cov-report=term
 
   lint:
     desc: Lint the code

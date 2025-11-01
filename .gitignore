@@ -8,6 +8,7 @@ wheels/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
 
 .venv
 .envrc

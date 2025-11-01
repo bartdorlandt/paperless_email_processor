@@ -12,4 +12,43 @@ dev = [
     "pytest>=8.4.1",
     "ruff>=0.12.3",
     "types-requests>=2.32.4.20250913",
+    "pytest-cov>=7.0.0",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+extend-exclude = [".git", "__pycache__", "dist", "build", ".venv", "test_*"]
+
+[tool.ruff.lint]
+extend-ignore = ["D203", "D213", "PLR2004", "PLW0603"]
+extend-select = [
+    # pycodestyle Google style
+    "D",
+    # pycodestyle errors and warnings
+    "E",
+    "W",
+    # mccabe
+    "C90",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # pylint
+    "PL",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # flake8-bandit
+    "S",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
