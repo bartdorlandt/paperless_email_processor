@@ -9,17 +9,28 @@ import main
 
 @pytest.fixture(autouse=True)
 def set_env(tmp_path: Path) -> None:
-    os.environ["PAPERLESS_API_TOKEN"] = "some_token"
-    os.environ["PAPERLESS_API_PATH"] = "/api/documents/post_document/"
-    os.environ["PAPERLESS_API_URL"] = "http://localhost:8000"
-    os.environ["SMTP_PORT"] = "465"
-    os.environ["SMTP_SRV"] = "smtp.example.com"
-    os.environ["SMTP_USR"] = "user@example.com"
-    os.environ["SMTP_PWD"] = "password"
-    os.environ["SMTP_TO"] = "recipient@example.com"
     os.environ["PROCESS_FOLDER"] = str(tmp_path / "process_folder")
     main.main_path = Path(os.environ["PROCESS_FOLDER"])
 
+@pytest.fixture(autouse=True)
+def paperless_vars() -> main.PaperlessVars:
+    return main.PaperlessVars(
+        api_token="some_token",
+        api_path="/api/documents/post_document/",
+        api_url="http://localhost:8000"
+    )
+
+@pytest.fixture(autouse=True)
+def email_vars() -> main.EmailVars:
+    main.EMAIL_VARS = main.EmailVars(
+        smtp_port=465,
+        smtp_srv="smtp.example.com",
+        smtp_usr="user@example.com",
+        smtp_pwd="password",
+        smtp_to="recipient@example.com",
+        error_email="error@example.com"
+    )
+    return main.EMAIL_VARS
 
 # Fixtures for test files and folders
 def setup_test_file(tmp_path, folder_name="to_paperless", filename="test.pdf") -> Path:
@@ -41,30 +52,45 @@ def test_move_to_done(tmp_path: Path) -> None:
 def test_process_folder_calls_processors(tmp_path: Path) -> None:
     file_path = setup_test_file(tmp_path)
     mock_processor = MagicMock()
-    main.process_folder(file_path.parent, processors=[mock_processor])
-    mock_processor.process.assert_called_with(file_path)
+    mock_processor.process.return_value = True  # Make processor succeed
+    with patch("main.send_email") as mock_send_email:
+        main.process_folder(file_path.parent, processors=[mock_processor])
+        mock_processor.process.assert_called_with(file_path)
+        # Since processor succeeded, send_email should not be called
+        mock_send_email.assert_not_called()
 
 
-def test_paperless_api_processor_success(tmp_path: Path) -> None:
+def test_process_folder_calls_error_email_on_failure(tmp_path: Path) -> None:
     file_path = setup_test_file(tmp_path)
-    processor = main.PaperlessAPIProcessor()
+    mock_processor = MagicMock()
+    mock_processor.process.return_value = False  # Make processor fail
+    with patch("main.send_email") as mock_send_email:
+        main.process_folder(file_path.parent, processors=[mock_processor])
+        mock_processor.process.assert_called_with(file_path)
+        # Since processor failed, send_email should be called for error notification
+        mock_send_email.assert_called_once()
+
+
+def test_paperless_api_processor_success(tmp_path: Path, paperless_vars: main.PaperlessVars) -> None:
+    file_path = setup_test_file(tmp_path)
+    processor = main.PaperlessAPIProcessor(vars=paperless_vars)
     with patch("main.requests.post") as mock_post:
         mock_post.return_value.status_code = 200
         assert processor.process(file_path) is True
 
 
-def test_paperless_api_processor_failure(tmp_path: Path) -> None:
+def test_paperless_api_processor_failure(tmp_path: Path, paperless_vars: main.PaperlessVars) -> None:
     file_path = setup_test_file(tmp_path)
-    processor = main.PaperlessAPIProcessor()
+    processor = main.PaperlessAPIProcessor(vars=paperless_vars)
     with patch("main.requests.post") as mock_post:
         mock_post.return_value.status_code = 500
         mock_post.return_value.text = "error"
         assert processor.process(file_path) is False
 
 
-def test_bookkeeping_email_processor_success(tmp_path: Path) -> None:
+def test_bookkeeping_email_processor_success(tmp_path: Path, email_vars: main.EmailVars) -> None:
     file_path = setup_test_file(tmp_path, folder_name="to_bookkeeping")
-    processor = main.BookkeepingEmailProcessor()
+    processor = main.BookkeepingEmailProcessor(vars=email_vars)
     with patch("main.smtplib.SMTP_SSL") as mock_smtp:
         mock_server = MagicMock()
         mock_smtp.return_value.__enter__.return_value = mock_server
@@ -73,8 +99,8 @@ def test_bookkeeping_email_processor_success(tmp_path: Path) -> None:
         mock_server.send_message.assert_called()
 
 
-def test_bookkeeping_email_processor_failure(tmp_path: Path) -> None:
+def test_bookkeeping_email_processor_failure(tmp_path: Path, email_vars: main.EmailVars) -> None:
     file_path = setup_test_file(tmp_path, folder_name="to_bookkeeping")
-    processor = main.BookkeepingEmailProcessor()
+    processor = main.BookkeepingEmailProcessor(vars=email_vars)
     with patch("main.smtplib.SMTP_SSL", side_effect=Exception("fail")):
         assert processor.process(file_path) is False

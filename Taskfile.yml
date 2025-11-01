@@ -65,7 +65,7 @@ tasks:
   pytest:
     desc: Run pytest
     cmds:
-      - uv run pytest -v
+      - uv run pytest -v --cov=main --cov-report=html --cov-report=term
 
   lint:
     desc: Lint the code

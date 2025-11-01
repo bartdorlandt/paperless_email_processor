@@ -1,6 +1,9 @@
+"""Main script for processing files for Paperless and bookkeeping via email."""
+
 import logging
 import smtplib
 import ssl
+from dataclasses import dataclass
 from email.message import EmailMessage
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -24,37 +27,56 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 if not logger.hasHandlers():
-    file_handler = RotatingFileHandler(
-        LOG_FILENAME, maxBytes=10 * 1024 * 1024, backupCount=2, encoding="utf-8"
-    )
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-    )
+    file_handler = RotatingFileHandler(LOG_FILENAME, maxBytes=10 * 1024 * 1024, backupCount=2, encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logger.addHandler(file_handler)
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-    )
+    console_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logger.addHandler(console_handler)
 
 
+@dataclass
+class PaperlessVars:
+    """Paperless API configuration variables."""
+
+    api_token: str = env.str("PAPERLESS_API_TOKEN")
+    api_path: str = env.str("PAPERLESS_API_PATH")
+    api_url: str = env.str("PAPERLESS_API_URL")
+
+
+@dataclass
+class EmailVars:
+    """Email (SMTP) configuration variables."""
+
+    smtp_port: int = env.int("SMTP_PORT")
+    smtp_srv: str = env.str("SMTP_SRV")
+    smtp_usr: str = env.str("SMTP_USR", validate=[validate.Length(min=4), validate.Email()])
+    smtp_pwd: str = env.str("SMTP_PWD")
+    smtp_to: str = env.str("SMTP_TO", validate=[validate.Length(min=4), validate.Email()])
+    error_email: str = env.str("ERR_EMAIL", validate=[validate.Length(min=4), validate.Email()])
+
+
 class FileProcessor(Protocol):
+    """Protocol for file processors."""
+
     def process(self, filepath: Path) -> bool:
         """Process the file and return True if successful, False otherwise."""
 
 
 class PaperlessAPIProcessor:
-    def __init__(self) -> None:
-        self.PAPERLESS_API_TOKEN = env.str("PAPERLESS_API_TOKEN")
-        self.PAPERLESS_API_PATH = env.str("PAPERLESS_API_PATH")
-        self.PAPERLESS_API_URL = env.str("PAPERLESS_API_URL")
+    """Processor for uploading files to the Paperless API."""
+
+    def __init__(self, vars: PaperlessVars) -> None:
+        """Initialize with PaperlessVars."""
+        self.vars = vars
 
     def process(self, filepath: Path) -> bool:
-        url = f"{self.PAPERLESS_API_URL.rstrip('/')}{self.PAPERLESS_API_PATH}"
-        headers = {"Authorization": f"Token {self.PAPERLESS_API_TOKEN}"}
+        """Process the file and upload it to the Paperless API."""
+        url = f"{self.vars.api_url.rstrip('/')}{self.vars.api_path}"
+        headers = {"Authorization": f"Token {self.vars.api_token}"}
         files = {"document": filepath.open("rb")}
         try:
-            response = requests.post(url, headers=headers, files=files)
+            response = requests.post(url, headers=headers, files=files, timeout=10)
         except requests.ConnectionError as e:
             logger.error(f"Failed to connect to Paperless API: {e}")
             return False
@@ -62,38 +84,27 @@ class PaperlessAPIProcessor:
             logger.error(f"Max retries exceeded while connecting to Paperless API: {e}")
             return False
         except urllib3.exceptions.NameResolutionError as e:
-            logger.error(
-                f"Name resolution error while connecting to Paperless API: {e}"
-            )
+            logger.error(f"Name resolution error while connecting to Paperless API: {e}")
             return False
         logger.debug(f"Response from Paperless: {response.status_code} {response.text}")
         if response.status_code == 200:
             logger.info(f"Uploaded to Paperless: {filepath}")
             return True
         else:
-            logger.error(
-                f"Failed to upload {filepath} to Paperless: {response.status_code} {response.text}"
-            )
+            logger.error(f"Failed to upload {filepath} to Paperless: {response.status_code} {response.text}")
             return False
 
 
 class BookkeepingEmailProcessor:
-    def __init__(self) -> None:
-        self.SMTP_PORT = env.int("SMTP_PORT")
-        self.SMTP_SRV = env.str("SMTP_SRV")
-        self.SMTP_USR = env.str(
-            "SMTP_USR", validate=[validate.Length(min=4), validate.Email()]
-        )
-        self.SMTP_PWD = env.str("SMTP_PWD")
-        self.SMTP_TO = env.str(
-            "SMTP_TO", validate=[validate.Length(min=4), validate.Email()]
-        )
+    """Processor for sending files via email to bookkeeping."""
+
+    def __init__(self, vars: EmailVars) -> None:
+        """Initialize with EmailVars."""
+        self.vars = vars
 
     def process(self, filepath: Path) -> bool:
-        msg = EmailMessage()
-        msg["Subject"] = filepath.name
-        msg["From"] = self.SMTP_USR
-        msg["To"] = self.SMTP_TO
+        """Process the file and send it via email."""
+        msg = new_email_message(subject=filepath.name, smtp_to=self.vars.smtp_to, smtp_from=self.vars.smtp_usr)
         with filepath.open("rb") as f:
             msg.add_attachment(
                 f.read(),
@@ -102,12 +113,7 @@ class BookkeepingEmailProcessor:
                 filename=filepath.name,
             )
         try:
-            with smtplib.SMTP_SSL(
-                self.SMTP_SRV, self.SMTP_PORT, context=ssl.create_default_context()
-            ) as server:
-                server.ehlo()
-                server.login(self.SMTP_USR, self.SMTP_PWD)
-                server.send_message(msg)
+            send_email(msg=msg, vars=self.vars)
         except Exception as e:
             logger.error(f"Failed to send {filepath} via email: {e}")
             return False
@@ -117,6 +123,7 @@ class BookkeepingEmailProcessor:
 
 
 def move_to_done(filepath: Path) -> None:
+    """Move processed file to the done directory."""
     # Get the parent directory name (e.g., to_paperless, to_bookkeeping, to_all)
     parent = filepath.parent.name
     done_dir = main_path / "done" / parent
@@ -127,6 +134,7 @@ def move_to_done(filepath: Path) -> None:
 
 
 def process_folder(folder: Path, processors: list[FileProcessor]) -> None:
+    """Process all files in the given folder with the provided processors."""
     folder.mkdir(exist_ok=True)
     for file in list(folder.iterdir()):
         if not file.is_file():
@@ -141,21 +149,58 @@ def process_folder(folder: Path, processors: list[FileProcessor]) -> None:
 
         if processed == len(processors):
             move_to_done(file)
+        else:
+            error_email(subject="File Processing Error", filename=file.name, vars=EMAIL_VARS)
+
+
+def error_email(subject: str, filename: str, vars: EmailVars) -> None:
+    """Send an error email notification."""
+    msg = new_email_message(subject, smtp_to=vars.error_email, smtp_from=vars.smtp_usr)
+    body = f"An error occurred while processing file: {filename!r}"
+    msg.set_content(body)
+
+    try:
+        send_email(msg=msg, vars=vars)
+    except Exception as e:
+        logger.error(f"Failed to send error email: {e}")
+        raise e
+    else:
+        logger.info("Sent error email successfully.")
+
+
+def new_email_message(subject: str, smtp_to: str, smtp_from: str) -> EmailMessage:
+    """Define a new email message."""
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = smtp_from
+    msg["To"] = smtp_to
+    return msg
+
+
+def send_email(msg: EmailMessage, vars: EmailVars) -> None:
+    """Send an email message via SMTP."""
+    with smtplib.SMTP_SSL(vars.smtp_srv, vars.smtp_port, context=ssl.create_default_context()) as server:
+        server.ehlo()
+        server.login(vars.smtp_usr, vars.smtp_pwd)
+        server.send_message(msg)
 
 
 def main() -> None:
+    """Main entry point for the script."""
     # logger.info("Starting paperless-email-processor service...")
-    paperless_processor = PaperlessAPIProcessor()
-    bookkeeping_processor = BookkeepingEmailProcessor()
+    paperless_processor = PaperlessAPIProcessor(PAPERLESS_VARS)
+    bookkeeping_processor = BookkeepingEmailProcessor(EMAIL_VARS)
     process_folder(main_path / "to_paperless", processors=[paperless_processor])
     process_folder(main_path / "to_bookkeeping", processors=[bookkeeping_processor])
-    process_folder(
-        main_path / "to_both", processors=[paperless_processor, bookkeeping_processor]
-    )
+    process_folder(main_path / "to_both", processors=[paperless_processor, bookkeeping_processor])
 
 
 if __name__ == "__main__":
     # Vars
     PROCESS_FOLDER = env.str("PROCESS_FOLDER", default="process_folder")
     main_path = Path(PROCESS_FOLDER)
+
+    # Reading the vars here to ensure env dependencies are present and loaded
+    PAPERLESS_VARS = PaperlessVars()
+    EMAIL_VARS = EmailVars()
     main()
