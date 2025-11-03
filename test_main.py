@@ -10,27 +10,27 @@ import main
 @pytest.fixture(autouse=True)
 def set_env(tmp_path: Path) -> None:
     os.environ["PROCESS_FOLDER"] = str(tmp_path / "process_folder")
-    main.main_path = Path(os.environ["PROCESS_FOLDER"])
+    main.MAIN_PATH = Path(os.environ["PROCESS_FOLDER"])
+    main.FROM_EMAIL = "from@example.local"
+    main.ERROR_EMAIL = "some@email.local"
+    main.SMTP_VARS = main.SmtpVars(
+        smtp_port=465,
+        smtp_srv="smtp.example.com",
+        smtp_usr="user@example.com",
+        smtp_pwd="password",
+    )
 
 @pytest.fixture(autouse=True)
 def paperless_vars() -> main.PaperlessVars:
     return main.PaperlessVars(
         api_token="some_token",
         api_path="/api/documents/post_document/",
-        api_url="http://localhost:8000"
+        api_url="http://localhost:8000",
     )
 
 @pytest.fixture(autouse=True)
-def email_vars() -> main.EmailVars:
-    main.EMAIL_VARS = main.EmailVars(
-        smtp_port=465,
-        smtp_srv="smtp.example.com",
-        smtp_usr="user@example.com",
-        smtp_pwd="password",
-        smtp_to="recipient@example.com",
-        error_email="error@example.com"
-    )
-    return main.EMAIL_VARS
+def bookkeeping_vars() -> main.EmailVars:
+    return main.EmailVars(to="recipient@example.com")
 
 # Fixtures for test files and folders
 def setup_test_file(tmp_path, folder_name="to_paperless", filename="test.pdf") -> Path:
@@ -44,7 +44,7 @@ def setup_test_file(tmp_path, folder_name="to_paperless", filename="test.pdf") -
 def test_move_to_done(tmp_path: Path) -> None:
     file_path = setup_test_file(tmp_path / "dir1")
     main.move_to_done(file_path)
-    done_file = main.main_path / "done" / "to_paperless" / "test.pdf"
+    done_file = main.MAIN_PATH / "done" / "to_paperless" / "test.pdf"
     assert done_file.exists()
     assert not file_path.exists()
 
@@ -88,9 +88,9 @@ def test_paperless_api_processor_failure(tmp_path: Path, paperless_vars: main.Pa
         assert processor.process(file_path) is False
 
 
-def test_bookkeeping_email_processor_success(tmp_path: Path, email_vars: main.EmailVars) -> None:
+def test_bookkeeping_email_processor_success(tmp_path: Path, bookkeeping_vars: main.EmailVars) -> None:
     file_path = setup_test_file(tmp_path, folder_name="to_bookkeeping")
-    processor = main.BookkeepingEmailProcessor(vars=email_vars)
+    processor = main.EmailProcessor(vars=bookkeeping_vars)
     with patch("main.smtplib.SMTP_SSL") as mock_smtp:
         mock_server = MagicMock()
         mock_smtp.return_value.__enter__.return_value = mock_server
@@ -99,8 +99,8 @@ def test_bookkeeping_email_processor_success(tmp_path: Path, email_vars: main.Em
         mock_server.send_message.assert_called()
 
 
-def test_bookkeeping_email_processor_failure(tmp_path: Path, email_vars: main.EmailVars) -> None:
+def test_bookkeeping_email_processor_failure(tmp_path: Path, bookkeeping_vars: main.EmailVars) -> None:
     file_path = setup_test_file(tmp_path, folder_name="to_bookkeeping")
-    processor = main.BookkeepingEmailProcessor(vars=email_vars)
+    processor = main.EmailProcessor(vars=bookkeeping_vars)
     with patch("main.smtplib.SMTP_SSL", side_effect=Exception("fail")):
         assert processor.process(file_path) is False
