@@ -1,6 +1,13 @@
 # Paperless and Email Processor
 
-With this script you can process files to be send to paperless api or email. It will check the `process_folder` for files in the `to_paperless`, `to_bookkeeping`, or `to_both` directories and process them accordingly.
+With this script you can process files to be send to paperless api or email.
+
+It will check the `process_folder` for files in the `to_paperless`, `to_bookkeeping`, `to_both` or `to_bookkeeper` directories and process them accordingly.
+
+* to_paperless: Files in this folder will be sent to the Paperless API.
+* to_bookkeeping: Files in this folder will be sent via email to the bookkeeping application email address to be processed.
+* to_both: Files in this folder will be sent to both the Paperless API and via email to the bookkeeping application email address.
+* to_bookkeeper: Files in this folder will be sent to my bookkeeper, but could be anyone.
 
 ## Requirements
 - Python 3.13 or higher
@@ -30,5 +37,9 @@ Since, I've been using `uv` to run the script directly on my server/nas. This al
 
 ## Usage
 Provide the main folder along with the environment variables in a `.env` file.
+
+Create a `.env` file based on the `env.example` file and set the required environment variables.
+
+Run `task create_dirs` to create the necessary sub-directories.
 
 Run `task run` to start the script.

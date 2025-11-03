@@ -12,31 +12,6 @@ tasks:
     cmd: task -l --sort none
     silent: true
 
-  up:
-    desc: Start the {{.DOCKER_IMAGE}} docker compose service
-    cmds:
-      - "{{.SUDO}} docker compose up -d"
-
-  down:
-    desc: Stop the {{.DOCKER_IMAGE}} docker compose service
-    cmds:
-      - "{{.SUDO}} docker compose down"
-
-  rebuild:
-    desc: Rebuild the {{.DOCKER_IMAGE}} docker compose service
-    cmds:
-      - "{{.SUDO}} docker compose up -d --build"
-
-  rmi:
-    desc: Stop the {{.DOCKER_IMAGE}} docker compose service
-    cmds:
-      - "{{.SUDO}} docker compose down --rmi all"
-
-  logs:
-    desc: Show logs for the {{.DOCKER_IMAGE}} service
-    cmds:
-      - "{{.SUDO}} docker compose logs -f {{.DOCKER_IMAGE}}"
-
   run:
     desc: Run the script with uv
     cmds:
@@ -92,3 +67,9 @@ tasks:
     cmds:
       - uv run ruff check . --fix
       - uv run ruff format .
+
+  create_dirs:
+    desc: Create necessary directories
+    cmds:
+      - for: ["to_bookkeeper", "to_bookkeeping", "to_both", "to_paperless"]
+        cmd: mkdir -p ${PROCESS_FOLDER}/{{ .ITEM }}
