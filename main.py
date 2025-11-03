@@ -113,6 +113,7 @@ class EmailProcessor:
             subject=filepath.name,
             smtp_to=self.vars.to,
         )
+        msg.set_content(f"Hi,\n\nPlease find attached the file: {filepath.name}.\n\nBest regards.")
         with filepath.open("rb") as f:
             msg.add_attachment(
                 f.read(),
@@ -207,14 +208,14 @@ def main() -> None:
     bookkeeper_vars = EmailVars(
         to=env.str("BOOKKEEPER_EMAIL", validate=[validate.Length(min=4), validate.Email()]),
     )
-    # logger.info("Starting paperless-email-processor service...")
     paperless_processor = PaperlessAPIProcessor(paperless_vars)
     bookkeeping_processor = EmailProcessor(bookkeeping_vars)
+    to_person_processor = EmailProcessor(bookkeeper_vars)
+
+    logger.info("Loaded variables, processing directories...")
     process_folder(MAIN_PATH / "to_paperless", processors=[paperless_processor])
     process_folder(MAIN_PATH / "to_bookkeeping", processors=[bookkeeping_processor])
     process_folder(MAIN_PATH / "to_both", processors=[paperless_processor, bookkeeping_processor])
-
-    to_person_processor = EmailProcessor(bookkeeper_vars)
     process_folder(MAIN_PATH / "to_bookkeeper", processors=[to_person_processor])
 
 
