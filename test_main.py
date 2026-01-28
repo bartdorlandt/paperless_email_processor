@@ -71,6 +71,16 @@ def test_process_folder_calls_error_email_on_failure(tmp_path: Path) -> None:
         mock_send_email.assert_called_once()
 
 
+def test_process_folder_calls_hidden_file(tmp_path: Path) -> None:
+    """No processing and sending email should occur for hidden files."""
+    file_path = setup_test_file(tmp_path, filename=".DS_Store")
+    mock_processor = MagicMock()
+    mock_processor.process.return_value = False  # Make processor fail
+    with patch("main.send_email") as mock_send_email:
+        main.process_folder(file_path.parent, processors=[mock_processor])
+        mock_processor.process.assert_not_called()
+        mock_send_email.assert_not_called()
+
 def test_paperless_api_processor_success(tmp_path: Path, paperless_vars: main.PaperlessVars) -> None:
     file_path = setup_test_file(tmp_path)
     processor = main.PaperlessAPIProcessor(vars=paperless_vars)

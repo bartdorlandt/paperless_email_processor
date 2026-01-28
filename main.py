@@ -143,10 +143,13 @@ def move_to_done(filepath: Path) -> None:
 
 
 def process_folder(folder: Path, processors: list[FileProcessor]) -> None:
-    """Process all files in the given folder with the provided processors."""
+    """Process files in the given folder with the provided processors.
+
+    Files starting with a dot are ignored.
+    """
     folder.mkdir(exist_ok=True)
     for file in list(folder.iterdir()):
-        if not file.is_file():
+        if not file.is_file() or file.name.startswith("."):
             continue
 
         # Track if any processor succeeded
