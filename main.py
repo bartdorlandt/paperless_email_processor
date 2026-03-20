@@ -79,9 +79,9 @@ class PaperlessAPIProcessor:
         """Process the file and upload it to the Paperless API."""
         url = f"{self.vars.api_url.rstrip('/')}{self.vars.api_path}"
         headers = {"Authorization": f"Token {self.vars.api_token}"}
-        files = {"document": filepath.open("rb")}
         try:
-            response = requests.post(url, headers=headers, files=files, timeout=10)
+            with filepath.open("rb") as f:
+                response = requests.post(url, headers=headers, files={"document": f}, timeout=10)
         except requests.ConnectionError as e:
             logger.error(f"Failed to connect to Paperless API: {e}")
             return False
