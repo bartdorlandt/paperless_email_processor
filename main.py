@@ -218,7 +218,8 @@ def main() -> None:
     logger.info("Loaded variables, processing directories...")
     process_folder(MAIN_PATH / "to_paperless", processors=[paperless_processor])
     process_folder(MAIN_PATH / "to_bookkeeping", processors=[bookkeeping_processor])
-    process_folder(MAIN_PATH / "to_both", processors=[paperless_processor, bookkeeping_processor])
+    process_folder(MAIN_PATH / "to_bookkeeping_paperless", processors=[paperless_processor, bookkeeping_processor])
+    process_folder(MAIN_PATH / "to_paperless_bookkeeper", processors=[paperless_processor, to_person_processor])
     process_folder(MAIN_PATH / "to_bookkeeper", processors=[to_person_processor])
 
 
